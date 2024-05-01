@@ -1,0 +1,47 @@
+name: Trigger auto deployment for cloud-build-test
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ master ]
+    paths:
+    - '**'
+    - '.github/workflows/cloud-build-test-AutoDeployTrigger-5a9cb4e5-c76f-491b-b686-74ae9bf726ed.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.CLOUDBUILDTEST_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.CLOUDBUILDTEST_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.CLOUDBUILDTEST_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }} 
+          registryUrl: 
+          registryUsername: ${{ secrets.CLOUDBUILDTEST_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.CLOUDBUILDTEST_REGISTRY_PASSWORD }}
+          containerAppName: cloud-build-test
+          resourceGroup: artifact-rg
+          imageToBuild: default/[parameters('containerAppName')]:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
