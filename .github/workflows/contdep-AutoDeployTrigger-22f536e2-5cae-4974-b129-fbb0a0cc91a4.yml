@@ -1,0 +1,47 @@
+name: Trigger auto deployment for contdep
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ master ]
+    paths:
+    - '**'
+    - '.github/workflows/contdep-AutoDeployTrigger-22f536e2-5cae-4974-b129-fbb0a0cc91a4.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.CONTDEP_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.CONTDEP_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.CONTDEP_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }} 
+          registryUrl: testerregistry.azurecr.io
+          registryUsername: ${{ secrets.CONTDEP_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.CONTDEP_REGISTRY_PASSWORD }}
+          containerAppName: contdep
+          resourceGroup: OGFCan-2907-gayathri
+          imageToBuild: testerregistry.azurecr.io/contdep:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
